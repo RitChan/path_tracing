@@ -1,0 +1,7 @@
+FROM debian:11
+RUN apt-get update && apt -y install apt-transport-https ca-certificates
+COPY ./Debian11_sources.list /etc/apt/sources.list
+RUN apt-get update && apt-get install -y libncurses-dev libreadline-dev build-essential
+COPY ./xmake-v2.6.7.amd64.deb /home/xmake-v2.6.7.amd64.deb
+WORKDIR /home
+RUN dpkg -i xmake-v2.6.7.amd64.deb && rm -f xmake-v2.6.7.amd64.deb
