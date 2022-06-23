@@ -1,5 +1,5 @@
-#include <stdio.h>
-#include <eigen/Eigen/Eigen>
+#include <cstdio>
+#include <eigen3/Eigen/Eigen>
 
 
 int main() {

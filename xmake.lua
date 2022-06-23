@@ -1,5 +1,1 @@
-target("ray_tracing")
-    set_kind("binary")
-    add_files("code/sources/*.cpp")
-    add_headerfiles("code/headers/*.h", "code/headers/*.hpp")
-    add_includedirs("thirdparty")
+includes("cpp")
