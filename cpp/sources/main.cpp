@@ -1,8 +1,8 @@
 #include <cstdio>
 #include <eigen3/Eigen/Eigen>
 
-#include "Ray.hpp"
-#include "Surface.hpp"
+#include "ray.hpp"
+#include "surface.hpp"
 #include "ppm.hpp"
 
 
