@@ -1,3 +1,7 @@
+/**
+ * @file mathutils.cpp
+ * @brief mathutils.h的具体实现
+ */
 #include <mathutils.h>
 #include <cmath>
 

@@ -1,4 +1,8 @@
-#include <ppm.hpp>
+/**
+ * @file ppm.cpp
+ * @brief ppm.h的具体实现
+ */
+#include <ppm.h>
 
 void write_ppm(FILE *file, uint8_t *buffer, int width, int height) {
   fprintf(file, "P6\n%i %i 255\n", width, height);

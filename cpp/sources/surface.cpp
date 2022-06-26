@@ -1,7 +1,34 @@
+/**
+ * @file surface.cpp
+ * @brief surface.h的具体实现
+ */
 #include <mathutils.h>
-#include <surface.hpp>
+#include <surface.h>
+#include <hitrecord.h>
+
+AABB::AABB(float x_low, float x_high, float y_low, float y_high, float z_low, float z_high) : p0(x_low, y_low, z_low), p1(x_high, y_high, z_high) {
+    float temp = 0;
+    if (p0[0] < p1[0]) {
+        temp = p0[0];
+        p0[0] = p1[0];
+        p1[0] = temp;
+    }
+    if (p0[1] < p1[1]) {
+        temp = p0[1];
+        p0[1] = p1[1];
+        p1[1] = temp;
+    }
+    if (p0[2] < p1[2]) {
+        temp = p0[2];
+        p0[2] = p1[2];
+        p1[2] = temp;
+    }
+}
 
 bool AABB::ray_hit(const Ray &ray, float t0, float t1, HitRecord *hit_record) const {
+    if (hit_record != nullptr)
+        hit_record->hit = false;
+
     float t_x0, t_x1, t_y0, t_y1, t_z0, t_z1;
     int num_solution = 0;
     t_x0 = solve_one_variable_linear(ray.d[0], p0[0] - ray.o[0], &num_solution);
@@ -52,5 +79,7 @@ bool AABB::ray_hit(const Ray &ray, float t0, float t1, HitRecord *hit_record) co
     float min_exit = enter_x < enter_y ? (enter_x < enter_z ? enter_x : enter_z) : (enter_y < enter_z ? enter_y : enter_z);
     if (min_exit < t0 || min_exit < max_enter)
         return false;
+    hit_record->hit = true;
+    hit_record->t = max_enter;
     return true;
 }
