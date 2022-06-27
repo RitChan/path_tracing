@@ -11,6 +11,8 @@
 #include <string>
 #include <surface.h>
 
+using namespace std;
+
 int main() {
     FILE *file = fopen("C:\\Users\\chenh\\Desktop\\untitled.obj", "r");
     if (file == nullptr) {
@@ -45,7 +47,7 @@ int main() {
         }
         model_list = model_list->next;
     }
-    printf("Num vertices = %d\n", model.num_verts);
+    printf("Num vertices = %d\n", vert_count);
     printf("Num models = %d\n", model_count);
     return 0;
 }

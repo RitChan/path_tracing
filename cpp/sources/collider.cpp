@@ -1,3 +1,7 @@
+/**
+ * @file collider.cpp
+ * @brief 
+ */
 #include <collider.h>
 #include <cmath>
 
