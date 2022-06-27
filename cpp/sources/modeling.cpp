@@ -1,15 +1,30 @@
 /**
  * @file modeling.cpp
- * @brief 
+ * @brief
  */
 #include <modeling.h>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
+#include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 using namespace std;
+
+/**
+ * @brief 从verts和faces搜集Model数据, 加载至m
+ * 
+ * @param m 搜集的数据的容器
+ * @param verts Vertices
+ * @param faces [[v/vt/n, v/vt/n, ..., v/vt/n], [v/vt/n, v/vt/n, ..., v/vt/n], ...]; 索引从0开始; 如果vt, n不存在, 用-1代替
+ * @return int 状态码: \n 
+ *  [0] succeeded \n 
+ *  [1] m == nullptr \n 
+ *  [2] verts == nullptr \n 
+ *  [3] faces == nullptr
+ */
+int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces);
 
 int add_submodel(Model *model, Model *submodel) {
     if (model == nullptr) {
@@ -34,10 +49,11 @@ int parse_obj(const char *obj_file, Model *model) {
     } else if (model == nullptr) {
         return 2;
     }
-    vector<Vertex> verts; // vertices
+    vector<Vertex> verts;               // vertices
     vector<Eigen::Vector2f> tex_coords; // texture coordinates
     vector<Eigen::Vector3f> normals;
-    vector<vector<Eigen::Vector3i>> faces; // [[v/vt/n, v/vt/n, ..., v/vt/n], [v/vt/n, v/vt/n, ..., v/vt/n], ...], 如果vt, n不存在, 用-1代替
+    // [[v/vt/n, v/vt/n, ..., v/vt/n], [v/vt/n, v/vt/n, ..., v/vt/n], ...]; 索引从0开始; 如果vt, n不存在, 用-1代替
+    vector<vector<Eigen::Vector3i>> faces;
     stringstream ss(obj_file);
     string line;
     Model *m = model; // 当前正在解析的的object/group
@@ -45,7 +61,7 @@ int parse_obj(const char *obj_file, Model *model) {
         if (line.compare(0, 2, "v ", 2) == 0) {
             stringstream tmp_ss(line.c_str() + 2); // temporary stringstream
             size_t offset = 2;
-            size_t parsed_len = 0; // parsed length
+            size_t parsed_len = 0;                             // parsed length
             Eigen::Vector4f vert_co = Eigen::Vector4f::Ones(); // vertex coordinates
             for (int i = 0; i < 4; i++) {
                 try {
@@ -59,9 +75,10 @@ int parse_obj(const char *obj_file, Model *model) {
                     return 4;
                 }
             }
-            Eigen::Vector3f vert_co_div(vert_co[0] / vert_co[3], vert_co[1] / vert_co[3], vert_co[2] / vert_co[3]); // vertex coordinates divided (by w)
-            if (std::isinf(vert_co_div[0]) || std::isinf(vert_co_div[1]) || std::isinf(vert_co_div[2]) || std::isnan(vert_co_div[0]) || std::isnan(vert_co_div[1]) ||
-                std::isnan(vert_co_div[2])) {
+            Eigen::Vector3f vert_co_div(vert_co[0] / vert_co[3], vert_co[1] / vert_co[3],
+                                        vert_co[2] / vert_co[3]); // vertex coordinates divided (by w)
+            if (std::isinf(vert_co_div[0]) || std::isinf(vert_co_div[1]) || std::isinf(vert_co_div[2]) || std::isnan(vert_co_div[0]) ||
+                std::isnan(vert_co_div[1]) || std::isnan(vert_co_div[2])) {
                 return 4;
             }
             Vertex v;
@@ -76,11 +93,11 @@ int parse_obj(const char *obj_file, Model *model) {
             stringstream line_ss(line.c_str() + 2); // line stringstream
             string word;
             vector<Eigen::Vector3i> face;
-            int num_faces_parsed; // number of parsed faces
+            int num_faces_parsed = 0; // number of parsed faces
             while (getline(line_ss, word, ' ')) {
-                stringstream word_ss(word.c_str()); // word stringstream
-                string idx_string; // index string of vertex, texture coordinate, normal
-                int num_prop_parsed = 0; // number of properties parsed for current vertex
+                stringstream word_ss(word.c_str());                        // word stringstream
+                string idx_string;                                         // index string of vertex, texture coordinate, normal
+                int num_prop_parsed = 0;                                   // number of properties parsed for current vertex
                 Eigen::Vector3i vertex_prop = Eigen::Vector3i(-1, -1, -1); // vertex properties
                 while (getline(word_ss, idx_string, '/')) {
                     if (num_prop_parsed >= 3) {
@@ -108,40 +125,65 @@ int parse_obj(const char *obj_file, Model *model) {
                 faces.push_back(std::move(face));
             }
         } else if (line.compare(0, 2, "o ", 2) == 0 || line.compare(0, 2, "g ", 2) == 0) {
-            m->num_verts = verts.size();
-            m->num_faces = faces.size();
-            if (m->num_verts > 0) {
-                m->verts = new Vertex[m->num_verts];
-                memcpy(m->verts, verts.data(), sizeof(Vertex) * m->num_verts);
-            }
-            if (m->num_faces > 0) {
-                m->faces = new Face[m->num_faces];
-            }
-            for (int i = 0; i < m->num_faces; i++) {
-                // i: index of faces
-                HEdge *cur_hedge = nullptr; // current HEdge
-                for (int j = 0; j < faces[i].size(); j++) {
-                    // j: index of face[i] vertices
-                    if (cur_hedge == nullptr) {
-                        cur_hedge = new HEdge();
-                        m->faces[i].h = cur_hedge;
-                    } else {
-                        cur_hedge->next = new HEdge();
-                        cur_hedge = cur_hedge->next;
-                    }
-                    int vid = faces[i][j][0]; // Vertex index
-                    cur_hedge->v = &m->verts[vid];
-                    m->verts[vid].h = cur_hedge;
-                }
-                if (cur_hedge != nullptr) {
-                    cur_hedge->next = m->faces[i].h;
-                }
-            }
-            Model *submodel = new Model();
-            add_submodel(model, submodel);
-            m = submodel;
+            collect_model_data(m, &verts, &faces);
+            m = new Model();
+            add_submodel(model, m);
             faces.clear();
-            printf("Add submodel\n");
+        }
+    }
+    if (!faces.empty()) {
+        collect_model_data(m, &verts, &faces);
+    }
+    return 0;
+}
+
+int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces) {
+    if (m == nullptr) {
+        return 1;
+    } else if (verts == nullptr) {
+        return 2;
+    } else if (faces == nullptr) {
+        return 3;
+    }
+    // 这里将全局的vertices映射到当前object所需的vertices, 减少存储空间
+    unordered_map<int, int> old2new; // old index to new index
+    for (int i = 0; i < faces->size(); i++) {
+        for (int j = 0; j < (*faces)[i].size(); j++) {
+            if (old2new.find((*faces)[i][j][0]) == old2new.end()) {
+                // not already seen
+                old2new.insert({(*faces)[i][j][0], old2new.size()});
+            }
+        }
+    }
+    m->num_verts = old2new.size();
+    m->num_faces = faces->size();
+    if (m->num_verts > 0) {
+        m->verts = new Vertex[m->num_verts];
+        for (auto p = old2new.begin(); p != old2new.end(); p++) {
+            m->verts[p->second] = (*verts)[p->first];
+        }
+    }
+    if (m->num_faces > 0) {
+        m->faces = new Face[m->num_faces];
+    }
+    for (int i = 0; i < m->num_faces; i++) {
+        // i: index of faces
+        HEdge *cur_hedge = nullptr; // current HEdge
+        for (int j = 0; j < (*faces)[i].size(); j++) {
+            // j: index of faces[i] vertices
+            if (cur_hedge == nullptr) {
+                cur_hedge = new HEdge();
+                m->faces[i].h = cur_hedge;
+            } else {
+                cur_hedge->next = new HEdge();
+                cur_hedge = cur_hedge->next;
+            }
+            int vid = old2new.find((*faces)[i][j][0])->second; // (New) vertex index
+            cur_hedge->v = &m->verts[vid];
+            m->verts[vid].h = cur_hedge;
+        }
+        if (cur_hedge != nullptr) {
+            cur_hedge->next = m->faces[i].h;
         }
     }
     return 0;

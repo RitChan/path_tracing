@@ -81,6 +81,7 @@ int add_submodel(Model *model, Model *submodel);
  *  (2) model是obj文件中的根节点, obj中不属于任一group/object的点线面将直接加入model, obj中定义的group/object会加入model的submodels \n
  *  (3) 一行中命令标识(v, vt, n, f, o, g), 顶点属性, 坐标以空格分隔, 多个连续空格等价于一个空格 \n 
  *  (4) f开头的行中, 顶点属性以"/"分隔, 顶点属性数量=分隔符数量+1 \n 
+ *  (5) f开头的行, 索引从1开始
  * @param obj_file (Not Free) Wavefront obj file. Should end with null character. Otherwise the program will crash.
  * @param model (Not Free) Objects的根节点
  * @return 状态码: \n 
@@ -93,6 +94,7 @@ int add_submodel(Model *model, Model *submodel);
  *  [6] 解析face顶点属性失败 \n 
  *  [7] face顶点属性超出int表达范围 \n 
  *  [8] 一个f开头的行中vertex包含的属性少于一个 \n 
+ *  [9] 将obj数据转换至Model数据时发生错误
  */
 int parse_obj(const char *obj_file, Model *model);
 
