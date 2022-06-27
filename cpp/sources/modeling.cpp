@@ -14,14 +14,14 @@ using namespace std;
 
 /**
  * @brief 从verts和faces搜集Model数据, 加载至m
- * 
+ *
  * @param m 搜集的数据的容器
  * @param verts Vertices
  * @param faces [[v/vt/n, v/vt/n, ..., v/vt/n], [v/vt/n, v/vt/n, ..., v/vt/n], ...]; 索引从0开始; 如果vt, n不存在, 用-1代替
- * @return int 状态码: \n 
- *  [0] succeeded \n 
- *  [1] m == nullptr \n 
- *  [2] verts == nullptr \n 
+ * @return int 状态码: \n
+ *  [0] succeeded \n
+ *  [1] m == nullptr \n
+ *  [2] verts == nullptr \n
  *  [3] faces == nullptr
  */
 int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces);

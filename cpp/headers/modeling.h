@@ -18,6 +18,7 @@ public:
     HEdge *pair = nullptr; // Half edge of neighbouring face.
     HEdge *next = nullptr; // Next half edge of the face in counter-clockwise order.
     Vertex *v = nullptr; // Common vertex of this and the next HEdge.
+    void *user_data = nullptr;
 };
 
 /**
@@ -26,6 +27,7 @@ public:
 class Face {
 public:
     HEdge *h = nullptr; // Any half edge of this face.
+    void *user_data = nullptr;
 };
 
 /**
@@ -35,6 +37,7 @@ class Vertex {
 public:
     Eigen::Vector3f co;
     HEdge *h = nullptr; // Any half edge connecting to this vertex.
+    void *user_data = nullptr;
 };
 
 class Model;
@@ -48,10 +51,11 @@ public:
     Model *model = nullptr;
     Eigen::Matrix3f rotation = Eigen::Matrix3f::Identity();
     Eigen::Vector3f translation = Eigen::Vector3f::Zero();
+    void *user_data;
 };
 
 /**
- * @brief (Has Pointer)
+ * @brief (Has Pointer) Tree-based, Half-edge-based Modeling
  */
 class Model {
 public:
@@ -97,5 +101,19 @@ int add_submodel(Model *model, Model *submodel);
  *  [9] 将obj数据转换至Model数据时发生错误
  */
 int parse_obj(const char *obj_file, Model *model);
+
+
+/**
+ * @brief 计算model->faces中HEdge缺失的pairs
+ * 
+ * Specifications: \n
+ * (1) faces的HEdge必须形成环
+ * (2) 一条边不能连接超过两个面
+ * 
+ * @param model 
+ * @param recursive 
+ * @return int 
+ */
+int calc_pairs(Model *model, bool recursive);
 
 #endif // __MODELING_H__
