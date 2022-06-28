@@ -2,6 +2,7 @@
  * @file modeling.cpp
  * @brief
  */
+// #include <algorithm>
 #include <modeling.h>
 #include <sstream>
 #include <stdexcept>
@@ -93,7 +94,7 @@ int parse_obj(const char *obj_file, Model *model) {
             stringstream line_ss(line.c_str() + 2); // line stringstream
             string word;
             vector<Eigen::Vector3i> face;
-            int num_faces_parsed = 0; // number of parsed faces
+            int num_verts_parsed = 0; // number of parsed vertices
             while (getline(line_ss, word, ' ')) {
                 stringstream word_ss(word.c_str());                        // word stringstream
                 string idx_string;                                         // index string of vertex, texture coordinate, normal
@@ -118,11 +119,13 @@ int parse_obj(const char *obj_file, Model *model) {
                 if (num_prop_parsed < 1) {
                     return 8;
                 }
-                num_faces_parsed += 1;
+                num_verts_parsed += 1;
                 face.push_back(vertex_prop);
             }
-            if (num_faces_parsed > 0) {
+            if (num_verts_parsed >= 3) {
                 faces.push_back(std::move(face));
+            } else {
+                return 10;
             }
         } else if (line.compare(0, 2, "o ", 2) == 0 || line.compare(0, 2, "g ", 2) == 0) {
             collect_model_data(m, &verts, &faces);
@@ -133,6 +136,10 @@ int parse_obj(const char *obj_file, Model *model) {
     }
     if (!faces.empty()) {
         collect_model_data(m, &verts, &faces);
+    }
+    int ret = calc_pairs(model, true);
+    if (ret != 0) {
+        return ret + 100;
     }
     return 0;
 }
@@ -161,29 +168,82 @@ int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vecto
         m->verts = new Vertex[m->num_verts];
         for (auto p = old2new.begin(); p != old2new.end(); p++) {
             m->verts[p->second] = (*verts)[p->first];
+            m->verts[p->second].index = p->second;
         }
     }
     if (m->num_faces > 0) {
         m->faces = new Face[m->num_faces];
     }
     for (int i = 0; i < m->num_faces; i++) {
-        // i: index of faces
+        // for every face
+        m->faces[i].index = i;
         HEdge *cur_hedge = nullptr; // current HEdge
+        int hedge_index = 0;
         for (int j = 0; j < (*faces)[i].size(); j++) {
-            // j: index of faces[i] vertices
+            // for every vertex
             if (cur_hedge == nullptr) {
                 cur_hedge = new HEdge();
                 m->faces[i].h = cur_hedge;
             } else {
                 cur_hedge->next = new HEdge();
+                cur_hedge->next->prev = cur_hedge;
                 cur_hedge = cur_hedge->next;
             }
+            cur_hedge->index = hedge_index++;
             int vid = old2new.find((*faces)[i][j][0])->second; // (New) vertex index
             cur_hedge->v = &m->verts[vid];
-            m->verts[vid].h = cur_hedge;
         }
         if (cur_hedge != nullptr) {
             cur_hedge->next = m->faces[i].h;
+            cur_hedge->next->prev = cur_hedge;
+        }
+    }
+    return 0;
+}
+
+int calc_pairs(Model *model, bool recursive) {
+    if (model == nullptr) {
+        return 1;
+    }
+    for (int i = 0; i < model->num_faces; i++) {
+        // for every face[i]
+        for (int j = i + 1; j < model->num_faces; j++) {
+            // for every face[j]
+            Face *fi = model->faces + i; // face[i]
+            Face *fj = model->faces + j; // face[j]
+            HEdge *ej = fj->h;           // edge of face[j]
+            HEdge *ei = fi->h;           // edge of face[i]
+            if (ei == nullptr || ej == nullptr) {
+                continue;
+            }
+            do {
+                // for every edge of face[i]
+                do {
+                    // for every edge of face[j]
+                    if (ei->v->index != -1 && ej->prev->v->index != -1 && ei->v->index == ej->prev->v->index && ei->prev->v->index != -1 &&
+                        ej->v->index != -1 && ei->prev->v->index == ej->v->index) {
+                        ei->num_paris += 1;
+                        HEdge **pairs = new HEdge *[ei->num_paris];
+                        memcpy(pairs, ei->pairs, sizeof(HEdge *) * (ei->num_paris - 1));
+                        delete[] ei->pairs;
+                        ei->pairs = pairs;
+                        ej->num_paris += 1;
+                        pairs = new HEdge *[ej->num_paris];
+                        memcpy(pairs, ej->pairs, sizeof(HEdge *) * (ej->num_paris - 1));
+                        delete[] ej->pairs;
+                        ej->pairs = pairs;
+                    }
+                    ej = ej->next;
+                } while (ej != fj->h);
+                ei = ei->next;
+            } while (ei != fi->h);
+        }
+    }
+    if (recursive) {
+        ModelList *model_list = model->submodels;
+        while (model_list != nullptr) {
+            calc_pairs(model_list->model, recursive);
+            model_list = model_list->next;
         }
     }
     return 0;

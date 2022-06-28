@@ -14,7 +14,7 @@
 using namespace std;
 
 int main() {
-    FILE *file = fopen("C:\\Users\\chenh\\Desktop\\untitled.obj", "r");
+    FILE *file = fopen("C:\\Users\\chenh\\Desktop\\untitled3.obj", "r");
     if (file == nullptr) {
         printf("Cannot open file\n");
         return 2;
@@ -25,10 +25,10 @@ int main() {
         return 1;
     }
     long file_len = ftell(file);
-    char *obj_file = new char[file_len+1];
+    char *obj_file = new char[file_len + 1];
     fseek(file, 0, 0);
     for (int i = 0; i < file_len; i++) {
-        obj_file[i] = (char) fgetc(file);
+        obj_file[i] = (char)fgetc(file);
     }
     obj_file[file_len] = '\0';
     Model model = Model();
@@ -45,9 +45,36 @@ int main() {
         if (model_list->model != nullptr) {
             vert_count += model_list->model->num_verts;
         }
+        for (int i = 0; i < model_list->model->num_faces; i++) {
+            Face *f = model_list->model->faces + i;
+            HEdge *e = f->h;
+            if (f->num_edges() > 0) {
+                printf("%d 15 ", f->num_edges());
+                do {
+                    printf("%f %f %f ", e->v->co[0], e->v->co[1], e->v->co[2]);
+                    e = e->prev;
+                } while (e != nullptr && e != f->h);
+            }
+            printf("\n");
+        }
+        for (int i = 0; i < model_list->model->num_faces; i++) {
+            Face *f = model_list->model->faces + i;
+            HEdge *e = f->h;
+            if (f->num_edges() > 0) {
+                do {
+                    if (e->num_paris > 0) {
+                        printf("2 4 ");
+                        printf("%f %f %f ", e->v->co[0], e->v->co[1], e->v->co[2]);
+                        printf("%f %f %f\n", e->prev->v->co[0], e->prev->v->co[1], e->prev->v->co[2]);
+                    }
+                    e = e->prev;
+                } while (e != nullptr && e != f->h);
+            }
+            printf("\n");
+        }
         model_list = model_list->next;
     }
-    printf("Num vertices = %d\n", vert_count);
-    printf("Num models = %d\n", model_count);
+    // printf("Num vertices = %d\n", vert_count);
+    // printf("Num models = %d\n", model_count);
     return 0;
 }
