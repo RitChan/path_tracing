@@ -14,7 +14,7 @@
 using namespace std;
 
 int main() {
-    FILE *file = fopen("C:\\Users\\chenh\\Desktop\\untitled3.obj", "r");
+    FILE *file = fopen("C:\\Users\\chenh\\Desktop\\untitled5.obj", "r");
     if (file == nullptr) {
         printf("Cannot open file\n");
         return 2;
@@ -63,6 +63,7 @@ int main() {
             if (f->num_edges() > 0) {
                 do {
                     if (e->num_paris > 0) {
+                        printf("model(%s).face(%d).edge(%d), num pairs = %d\n", model_list->model->name, f->index, e->index, e->num_paris);
                         printf("2 4 ");
                         printf("%f %f %f ", e->v->co[0], e->v->co[1], e->v->co[2]);
                         printf("%f %f %f\n", e->prev->v->co[0], e->prev->v->co[1], e->prev->v->co[2]);
@@ -70,7 +71,6 @@ int main() {
                     e = e->prev;
                 } while (e != nullptr && e != f->h);
             }
-            printf("\n");
         }
         model_list = model_list->next;
     }

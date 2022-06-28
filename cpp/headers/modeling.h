@@ -8,6 +8,7 @@
 #include <eigen3/Eigen/Eigen>
 
 class Vertex;
+class Face;
 
 /**
  * @brief (Has Pointer) Half edge. Each edge is local to some Face.
@@ -21,6 +22,7 @@ public:
     HEdge *next = nullptr;   // Next half edge of the face in counter-clockwise order.
     HEdge *prev = nullptr;   // Previous half edge of the face in counter-clockwise order
     Vertex *v = nullptr;     // Tail of this edge, in counter-clockwise order
+    Face *f = nullptr;       // Face of this half edge
     void *user_data = nullptr;
 };
 
@@ -80,6 +82,7 @@ public:
  */
 class Model {
 public:
+    char *name = nullptr;
     Vertex *verts = nullptr; // vertices
     Face *faces = nullptr;
     uint32_t num_verts = 0; // number of vertices
@@ -106,7 +109,9 @@ int add_submodel(Model *model, Model *submodel);
  *  (2) model是obj文件中的根节点, obj中不属于任一group/object的点线面将直接加入model, obj中定义的group/object会加入model的submodels \n
  *  (3) 一行中命令标识(v, vt, n, f, o, g), 顶点属性, 坐标以空格分隔, 多个连续空格等价于一个空格 \n
  *  (4) f开头的行中, 顶点属性以"/"分隔, 顶点属性数量=分隔符数量+1 \n
- *  (5) f开头的行, 索引从1开始
+ *  (5) f开头的行, 索引从1开始 \n
+ *  (6) group和object都被解析为Model \n
+ *  (7) 解析失败时, model中的数据可能会被污染
  * @param obj_file (Not Free) Wavefront obj file. Should end with null character. Otherwise the program will crash.
  * @param model (Not Free) Objects的根节点
  * @return 状态码: \n
@@ -130,27 +135,29 @@ int parse_obj(const char *obj_file, Model *model);
  *
  * 只要两个edge首尾相接(e1.head == e2.tail && e1.tail == e2.head), 两个edge就互为pair
  *
- * @param model (Definite Free)
+ * @param model (Sub Free)
  * @return 状态码: \n
  *  [0] succeeded \n
  *  [1] model == nullptr
  *  [2] Face loop is broken
- *  [3] match_pair时出错    
+ *  [3] match_pair时出错
  *  [100+i] 递归第i个(从0开始)子模型时出现错误
  */
 int calc_pairs(Model *model, bool recursive);
 
 /**
- * @brief 如果a和b的index相邻, 则设置a, b互为pairs; 如果a和b已经是pair, 什么都不发生    
- * @param a (Definite Free)
- * @param b (Definite Free)
+ * @brief 如果a和b的index相邻, 则设置a, b互为pairs; 如果a和b已经是pair, 什么都不发生
+ * @param a (Sub Free)
+ * @param b (Sub Free)
  * @return Status Code \n
  *  [0] succeeded
  *  [1] a == nullptr
  *  [2] b == nullptr
- *  [3] a, b已经是pair
+ *  [3] (skip) a, b已经是pair
  *  [4] a或b中找不到两个顶点index
  *  [5] a或b中找不到两个顶点
+ *  [6] a->f == nullptr || b->f == nullptr
+ *  [7] (skip) a, b属于同一个face
  */
 int match_pair(HEdge *a, HEdge *b);
 

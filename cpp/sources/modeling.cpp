@@ -16,7 +16,7 @@ using namespace std;
 /**
  * @brief 从verts和faces搜集Model数据, 加载至m
  *
- * @param m 搜集的数据的容器
+ * @param m 待加载的模型
  * @param verts Vertices
  * @param faces [[v/vt/n, v/vt/n, ..., v/vt/n], [v/vt/n, v/vt/n, ..., v/vt/n], ...]; 索引从0开始; 如果vt, n不存在, 用-1代替
  * @return int 状态码: \n
@@ -25,7 +25,7 @@ using namespace std;
  *  [2] verts == nullptr \n
  *  [3] faces == nullptr
  */
-int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces);
+int load_data_to_model(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces);
 
 int add_submodel(Model *model, Model *submodel) {
     if (model == nullptr) {
@@ -128,23 +128,29 @@ int parse_obj(const char *obj_file, Model *model) {
                 return 10;
             }
         } else if (line.compare(0, 2, "o ", 2) == 0 || line.compare(0, 2, "g ", 2) == 0) {
-            collect_model_data(m, &verts, &faces);
+            load_data_to_model(m, &verts, &faces);
             m = new Model();
+            int name_len = line.length() - 2;
+            char *name = new char[name_len + 1];
+            memcpy(name, line.c_str() + 2, sizeof(char) * name_len);
+            name[name_len] = '\0';
+            m->name = name;
             add_submodel(model, m);
             faces.clear();
         }
     }
     if (!faces.empty()) {
-        collect_model_data(m, &verts, &faces);
+        load_data_to_model(m, &verts, &faces);
     }
     int ret = calc_pairs(model, true);
     if (ret != 0) {
         return ret + 100;
     }
+    model->name = "root";
     return 0;
 }
 
-int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces) {
+int load_data_to_model(Model *m, const vector<Vertex> *verts, const vector<vector<Eigen::Vector3i>> *faces) {
     if (m == nullptr) {
         return 1;
     } else if (verts == nullptr) {
@@ -191,7 +197,8 @@ int collect_model_data(Model *m, const vector<Vertex> *verts, const vector<vecto
             }
             cur_hedge->index = hedge_index++;
             int vid = old2new.find((*faces)[i][j][0])->second; // (New) vertex index
-            cur_hedge->v = &m->verts[vid];
+            cur_hedge->v = m->verts + vid;
+            cur_hedge->f = m->faces + i;
         }
         if (cur_hedge != nullptr) {
             cur_hedge->next = m->faces[i].h;
@@ -232,13 +239,13 @@ int calc_pairs(Model *model, bool recursive) {
             // for every edge of face[i]
             for (auto ej : vid2edges[ei->v->index]) {
                 int ret = match_pair(ei, ej);
-                if (ret != 0 && ret != 3) {
+                if (ret != 0 && ret != 3 && ret != 7) {
                     return 3;
                 }
             }
             for (auto ej : vid2edges[ei->prev->v->index]) {
                 int ret = match_pair(ei, ej);
-                if (ret != 0 && ret != 3) {
+                if (ret != 0 && ret != 3 && ret != 7) {
                     return 3;
                 }
             }
@@ -269,6 +276,12 @@ int match_pair(HEdge *a, HEdge *b) {
     } else if (b == nullptr) {
         return 2;
     }
+    if (a->f == nullptr || b->f == nullptr) {
+        return 6;
+    }
+    if (a->f == b->f) {
+        return 7;
+    }
     for (int i = 0; i < a->num_paris; i++) {
         if (a->pairs[i] == b) {
             return 3;
@@ -285,17 +298,20 @@ int match_pair(HEdge *a, HEdge *b) {
     if (a->v->index == -1 || b->prev->v->index == -1 || a->prev->v->index == -1 || b->v->index == -1) {
         return 4;
     }
-    if (a->v->index == b->prev->v->index && a->prev->v->index == b->v->index) {
+    if ((a->v->index == b->prev->v->index && a->prev->v->index == b->v->index) ||
+        (a->v->index == b->v->index && a->prev->v->index == b->prev->v->index)) {
         a->num_paris += 1;
         HEdge **pairs = new HEdge *[a->num_paris];
         memcpy(pairs, a->pairs, sizeof(HEdge *) * (a->num_paris - 1));
         delete[] a->pairs;
         a->pairs = pairs;
+        a->pairs[a->num_paris - 1] = b;
         b->num_paris += 1;
         pairs = new HEdge *[b->num_paris];
         memcpy(pairs, b->pairs, sizeof(HEdge *) * (b->num_paris - 1));
         delete[] b->pairs;
         b->pairs = pairs;
+        b->pairs[b->num_paris - 1] = a;
     }
     return 0;
 }
