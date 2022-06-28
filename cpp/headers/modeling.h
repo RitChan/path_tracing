@@ -134,8 +134,24 @@ int parse_obj(const char *obj_file, Model *model);
  * @return 状态码: \n
  *  [0] succeeded \n
  *  [1] model == nullptr
+ *  [2] Face loop is broken
+ *  [3] match_pair时出错    
  *  [100+i] 递归第i个(从0开始)子模型时出现错误
  */
 int calc_pairs(Model *model, bool recursive);
+
+/**
+ * @brief 如果a和b的index相邻, 则设置a, b互为pairs; 如果a和b已经是pair, 什么都不发生    
+ * @param a (Definite Free)
+ * @param b (Definite Free)
+ * @return Status Code \n
+ *  [0] succeeded
+ *  [1] a == nullptr
+ *  [2] b == nullptr
+ *  [3] a, b已经是pair
+ *  [4] a或b中找不到两个顶点index
+ *  [5] a或b中找不到两个顶点
+ */
+int match_pair(HEdge *a, HEdge *b);
 
 #endif // __MODELING_H__

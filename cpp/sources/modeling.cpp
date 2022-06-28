@@ -205,46 +205,97 @@ int calc_pairs(Model *model, bool recursive) {
     if (model == nullptr) {
         return 1;
     }
+    vector<vector<HEdge *>> vid2edges(model->num_verts);
+    for (int i = 0; i < model->num_faces; i++) {
+        Face *fi = model->faces + i; // face[i]
+        HEdge *ei = fi->h;           // edge of face[i]
+        if (ei == nullptr) {
+            continue;
+        }
+        do {
+            vid2edges[ei->v->index].push_back(ei);
+            vid2edges[ei->prev->v->index].push_back(ei);
+            ei = ei->next;
+            if (ei == nullptr) {
+                return 2;
+            }
+        } while (ei != fi->h);
+    }
     for (int i = 0; i < model->num_faces; i++) {
         // for every face[i]
-        for (int j = i + 1; j < model->num_faces; j++) {
-            // for every face[j]
-            Face *fi = model->faces + i; // face[i]
-            Face *fj = model->faces + j; // face[j]
-            HEdge *ej = fj->h;           // edge of face[j]
-            HEdge *ei = fi->h;           // edge of face[i]
-            if (ei == nullptr || ej == nullptr) {
+        Face *fi = model->faces + i; // face[i]
+        HEdge *ei = fi->h;           // edge of face[i]
+        if (ei == nullptr || ei->v == nullptr || ei->v->index == -1) {
+            continue;
+        }
+        do {
+            // for every edge of face[i]
+            for (auto ej : vid2edges[ei->v->index]) {
+                int ret = match_pair(ei, ej);
+                if (ret != 0 && ret != 3) {
+                    return 3;
+                }
+            }
+            for (auto ej : vid2edges[ei->prev->v->index]) {
+                int ret = match_pair(ei, ej);
+                if (ret != 0 && ret != 3) {
+                    return 3;
+                }
+            }
+            ei = ei->next;
+            if (ei == nullptr) {
                 continue;
             }
-            do {
-                // for every edge of face[i]
-                do {
-                    // for every edge of face[j]
-                    if (ei->v->index != -1 && ej->prev->v->index != -1 && ei->v->index == ej->prev->v->index && ei->prev->v->index != -1 &&
-                        ej->v->index != -1 && ei->prev->v->index == ej->v->index) {
-                        ei->num_paris += 1;
-                        HEdge **pairs = new HEdge *[ei->num_paris];
-                        memcpy(pairs, ei->pairs, sizeof(HEdge *) * (ei->num_paris - 1));
-                        delete[] ei->pairs;
-                        ei->pairs = pairs;
-                        ej->num_paris += 1;
-                        pairs = new HEdge *[ej->num_paris];
-                        memcpy(pairs, ej->pairs, sizeof(HEdge *) * (ej->num_paris - 1));
-                        delete[] ej->pairs;
-                        ej->pairs = pairs;
-                    }
-                    ej = ej->next;
-                } while (ej != fj->h);
-                ei = ei->next;
-            } while (ei != fi->h);
-        }
+        } while (ei != fi->h);
     }
     if (recursive) {
         ModelList *model_list = model->submodels;
+        int submodel_index = 0;
         while (model_list != nullptr) {
-            calc_pairs(model_list->model, recursive);
+            int ret = calc_pairs(model_list->model, recursive);
+            if (ret != 0) {
+                return submodel_index;
+            }
+            submodel_index++;
             model_list = model_list->next;
         }
+    }
+    return 0;
+}
+
+int match_pair(HEdge *a, HEdge *b) {
+    if (a == nullptr) {
+        return 1;
+    } else if (b == nullptr) {
+        return 2;
+    }
+    for (int i = 0; i < a->num_paris; i++) {
+        if (a->pairs[i] == b) {
+            return 3;
+        }
+    }
+    for (int i = 0; i < b->num_paris; i++) {
+        if (b->pairs[i] == a) {
+            return 3;
+        }
+    }
+    if (a->v == nullptr || a->prev == nullptr || a->prev->v == nullptr || b->v == nullptr || b->prev == nullptr || b->prev->v == nullptr) {
+        return 5;
+    }
+    if (a->v->index == -1 || b->prev->v->index == -1 || a->prev->v->index == -1 || b->v->index == -1) {
+        return 4;
+    }
+    if (a->v->index == b->prev->v->index && a->prev->v->index == b->v->index) {
+        a->num_paris += 1;
+        HEdge **pairs = new HEdge *[a->num_paris];
+        memcpy(pairs, a->pairs, sizeof(HEdge *) * (a->num_paris - 1));
+        delete[] a->pairs;
+        a->pairs = pairs;
+        b->num_paris += 1;
+        pairs = new HEdge *[b->num_paris];
+        memcpy(pairs, b->pairs, sizeof(HEdge *) * (b->num_paris - 1));
+        delete[] b->pairs;
+        b->pairs = pairs;
     }
     return 0;
 }
