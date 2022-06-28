@@ -134,8 +134,6 @@ int parse_obj(const char *obj_file, Model *model);
  * @return 状态码: \n
  *  [0] succeeded \n
  *  [1] model == nullptr
- *  [2] face loop is broken
- *  [3] there is an edge without vertex
  *  [100+i] 递归第i个(从0开始)子模型时出现错误
  */
 int calc_pairs(Model *model, bool recursive);
